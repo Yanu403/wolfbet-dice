@@ -10,31 +10,23 @@ const MENU_ITEMS = [
 ];
 
 function createMenu(screen, callbacks) {
-  const menuBox = blessed.box({
+  // Use a single list widget with border/label — avoids the double-render
+  // artifact that occurs when nesting a list inside a box.
+  const list = blessed.list({
     parent: screen,
     label: ' Menu ',
     left: 0,
     top: 0,
     width: '22%',
-    height: '100%',
+    height: '100%-2',
     border: { type: 'line' },
-    style: {
-      border: { fg: 'cyan' },
-      label: { fg: 'cyan', bold: true },
-    },
-  });
-
-  const list = blessed.list({
-    parent: menuBox,
-    top: 1,
-    left: 0,
-    width: '100%-2',
-    height: '100%-4',
     keys: true,
-    vi: true,
+    vi: false,
     mouse: true,
     items: MENU_ITEMS,
     style: {
+      border: { fg: 'cyan' },
+      label: { fg: 'cyan', bold: true },
       selected: {
         bg: 'cyan',
         fg: 'black',
@@ -46,15 +38,16 @@ function createMenu(screen, callbacks) {
     },
   });
 
-  // Status line at bottom of menu
+  // Status line sits below the list, still within the left column.
   const statusLine = blessed.text({
-    parent: menuBox,
-    bottom: 1,
-    left: 1,
-    width: '100%-4',
+    parent: screen,
+    bottom: 0,
+    left: 0,
+    width: '22%',
+    height: 1,
     content: ' Bot: {red-fg}STOPPED{/red-fg} ',
     tags: true,
-    style: { fg: 'white' },
+    style: { fg: 'white', bg: 'black' },
   });
 
   list.on('select', (item, index) => {
@@ -100,7 +93,7 @@ function createMenu(screen, callbacks) {
     screen.render();
   }
 
-  return { menuBox, list, setRunning, updateStopOnWinLabel, focus };
+  return { list, setRunning, updateStopOnWinLabel, focus };
 }
 
 module.exports = { createMenu };

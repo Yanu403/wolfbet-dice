@@ -196,7 +196,19 @@ async function startBot() {
 }
 
 function processResult(result) {
-  const bet = result.data || result;
+  // WolfBet API may return { data: {...} } or the bet object directly.
+  // Identify a bet object by requiring both `state` and `amount` properties.
+  let bet = result;
+  if (result && typeof result === 'object') {
+    if (result.data && typeof result.data === 'object' &&
+        result.data.state && result.data.amount !== undefined) {
+      bet = result.data;
+    } else if (result.bet && typeof result.bet === 'object' &&
+               result.bet.state && result.bet.amount !== undefined) {
+      bet = result.bet;
+    }
+  }
+
   const isWin = bet.state === 'win';
 
   betState.lastResult = isWin ? 'win' : 'loss';
@@ -227,16 +239,27 @@ function processResult(result) {
 async function fetchBalance() {
   try {
     const data = await api.getBalances();
-    const balances = Array.isArray(data) ? data : (data.data || []);
+    // Handle both { data: [...] } and plain array responses
+    const balances = Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : [];
     const cfg = config.get();
     const entry = balances.find((b) => b.currency === cfg.currency);
     if (entry) {
       dashState.balance = Number(entry.amount);
+      // Some balance entries include user info
+      if (entry.user && entry.user.username) {
+        dashState.username = entry.user.username;
+      }
     }
     logPanel.info(`Balances fetched. ${cfg.currency.toUpperCase()}: ${dashState.balance !== null ? dashState.balance.toFixed(8) : '-'}`);
     dashboard.update(dashState);
   } catch (err) {
-    logPanel.error(`Failed to fetch balances: ${err.message}`);
+    const msg = err.response
+      ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}`
+      : err.message;
+    logPanel.error(`Failed to fetch balances: ${msg}`);
+    if (err.response && err.response.status === 401) {
+      logPanel.error('Unauthorized — check your API token in Settings (option 3).');
+    }
   }
 }
 
