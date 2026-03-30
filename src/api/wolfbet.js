@@ -76,10 +76,14 @@ class WolfBetAPI {
   }
 
   async placeBet({ currency, amount, rule, multiplier, bet_value }) {
+    // Round to 8 decimal places to avoid floating-point precision errors
+    // that cause HTTP 422 "Amount scale is too high" from the API.
+    // e.g. 0.00000001 * 2 * 2 * 2 may yield 7.999...e-8 instead of 8e-8.
+    const roundedAmount = Math.round(amount * 1e8) / 1e8;
     return this._request('post', '/bet/place', {
       currency,
       game: 'dice',
-      amount,
+      amount: roundedAmount,
       rule,
       multiplier,
       bet_value,
